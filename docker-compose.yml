@@ -7,9 +7,9 @@ services:
     environment:
       POSTGRES_DB: cost_optimizer
       POSTGRES_USER: admin
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      POSTGRES_PASSWORD: admin
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
