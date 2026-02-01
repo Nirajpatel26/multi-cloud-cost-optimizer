@@ -1,15 +1,21 @@
 # Optimization recommendations endpoints
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
 from typing import Optional
 from datetime import datetime
+import logging
 
 from app.schemas.aws_schemas import (
     RecommendationsResponse,
     IdleInstancesResponse,
     UnattachedVolumesResponse
 )
+from app.services.aws_mock_service import AWSMockService
+from app.core.dependencies import get_mock_service
+from app.core.validators import validate_cpu_threshold
+from app.core.exceptions import DatabaseConnectionError
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get("/aws/recommendations", response_model=RecommendationsResponse)
@@ -17,138 +23,191 @@ async def get_recommendations(
     severity: Optional[str] = Query(None, description="Filter by severity"),
     recommendation_type: Optional[str] = Query(None, description="Filter by recommendation type"),
     region: Optional[str] = Query(None, description="Filter by region"),
-    min_savings: Optional[float] = Query(None, description="Minimum potential savings threshold")
+    min_savings: Optional[float] = Query(None, description="Minimum potential savings threshold"),
+    service: AWSMockService = Depends(get_mock_service)
 ):
-    """Get all optimization recommendations"""
+    """
+    Get all optimization recommendations
     
-    # TODO: Replace with actual database query
-    recommendations = [
-        {
-            "id": 1,
-            "resource_id": "i-1234567890abcdef0",
-            "resource_type": "EC2",
-            "recommendation_type": "IDLE_INSTANCE",
-            "description": "Instance has 2.5% CPU utilization over 7 days",
-            "potential_savings": 70.00,
-            "severity": "HIGH",
-            "region": "us-east-1",
-            "created_at": datetime.utcnow().isoformat() + "Z"
-        },
-        {
-            "id": 2,
-            "resource_id": "vol-0123456789abcdef0",
-            "resource_type": "EBS",
-            "recommendation_type": "UNATTACHED_VOLUME",
-            "description": "Unattached 100GB gp3 volume",
-            "potential_savings": 8.00,
-            "severity": "LOW",
-            "region": "us-east-1",
-            "created_at": datetime.utcnow().isoformat() + "Z"
+    Step 1: Query recommendations from database
+    Step 2: Apply filters
+    Step 3: Calculate total savings
+    Step 4: Return results
+    """
+    
+    try:
+        logger.info(f"Fetching recommendations - severity: {severity}, type: {recommendation_type}, region: {region}")
+        
+        # Step 1: Query database
+        db_session = service.get_db_session()
+        
+        try:
+            from app.services.aws_mock_service import AWSOptimizationRecommendation
+            
+            query = db_session.query(AWSOptimizationRecommendation)
+            
+            # Step 2: Apply filters at database level
+            if severity:
+                query = query.filter(AWSOptimizationRecommendation.severity == severity)
+            
+            if recommendation_type:
+                query = query.filter(AWSOptimizationRecommendation.recommendation_type == recommendation_type)
+            
+            if region:
+                query = query.filter(AWSOptimizationRecommendation.region == region)
+            
+            if min_savings:
+                query = query.filter(AWSOptimizationRecommendation.potential_savings >= min_savings)
+            
+            recommendations_data = query.all()
+            
+            # Convert to dict format
+            recommendations = []
+            for rec in recommendations_data:
+                recommendations.append({
+                    "id": rec.id,
+                    "resource_id": rec.resource_id,
+                    "resource_type": rec.resource_type,
+                    "recommendation_type": rec.recommendation_type,
+                    "description": rec.description,
+                    "potential_savings": rec.potential_savings,
+                    "severity": rec.severity,
+                    "region": rec.region,
+                    "created_at": rec.created_at.isoformat() + "Z" if rec.created_at else None
+                })
+            
+        finally:
+            db_session.close()
+        
+        # Step 3: Calculate total savings
+        total_savings = sum(rec["potential_savings"] for rec in recommendations)
+        
+        logger.info(f"Found {len(recommendations)} recommendations with total savings: ${total_savings:.2f}")
+        
+        # Step 4: Return results
+        return {
+            "total_recommendations": len(recommendations),
+            "total_potential_savings": round(total_savings, 2),
+            "recommendations": recommendations
         }
-    ]
-    
-    # Apply filters
-    if severity:
-        recommendations = [r for r in recommendations if r["severity"] == severity]
-    
-    if recommendation_type:
-        recommendations = [r for r in recommendations if r["recommendation_type"] == recommendation_type]
-    
-    if region:
-        recommendations = [r for r in recommendations if r["region"] == region]
-    
-    if min_savings:
-        recommendations = [r for r in recommendations if r["potential_savings"] >= min_savings]
-    
-    total_savings = sum(r["potential_savings"] for r in recommendations)
-    
-    return {
-        "total_recommendations": len(recommendations),
-        "total_potential_savings": total_savings,
-        "recommendations": recommendations
-    }
+        
+    except DatabaseConnectionError:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching recommendations: {str(e)}")
+        raise DatabaseConnectionError(detail=f"Failed to fetch recommendations: {str(e)}")
 
 
 @router.get("/aws/recommendations/idle-instances", response_model=IdleInstancesResponse)
 async def get_idle_instances(
     cpu_threshold: Optional[float] = Query(5.0, description="CPU utilization threshold percentage"),
-    region: Optional[str] = Query(None, description="Filter by region")
+    region: Optional[str] = Query(None, description="Filter by region"),
+    service: AWSMockService = Depends(get_mock_service)
 ):
-    """Get list of idle EC2 instances"""
+    """
+    Get list of idle EC2 instances
     
-    # TODO: Replace with actual database query
-    idle_instances = [
-        {
-            "instance_id": "i-1234567890abcdef0",
-            "instance_type": "t3.medium",
-            "region": "us-east-1",
-            "cpu_utilization": 2.5,
-            "potential_savings": 70.00,
-            "recommendation": "Consider stopping or downsizing this instance"
-        },
-        {
-            "instance_id": "i-0987654321fedcba0",
-            "instance_type": "t3.small",
-            "region": "us-west-2",
-            "cpu_utilization": 3.2,
-            "potential_savings": 35.00,
-            "recommendation": "Consider stopping or downsizing this instance"
+    Step 1: Validate CPU threshold
+    Step 2: Identify idle resources using mock service
+    Step 3: Apply region filter
+    Step 4: Return idle instances with savings
+    """
+    
+    try:
+        # Step 1: Validate CPU threshold
+        cpu_threshold = validate_cpu_threshold(cpu_threshold)
+        
+        logger.info(f"Identifying idle instances - threshold: {cpu_threshold}%, region: {region}")
+        
+        # Step 2: Call mock service to identify idle resources
+        regions = [region] if region else None
+        idle_data = service.identify_idle_resources(
+            cpu_threshold=cpu_threshold,
+            regions=regions
+        )
+        
+        # Step 3: Format response
+        idle_instances = []
+        for item in idle_data:
+            idle_instances.append({
+                "instance_id": item.get("instance_id"),
+                "instance_type": item.get("instance_type"),
+                "region": item.get("region"),
+                "cpu_utilization": item.get("cpu_utilization", 0.0),
+                "potential_savings": item.get("potential_savings", 0.0),
+                "recommendation": item.get("recommendation", "Consider stopping or downsizing this instance")
+            })
+        
+        total_savings = sum(inst["potential_savings"] for inst in idle_instances)
+        
+        logger.info(f"Found {len(idle_instances)} idle instances with potential savings: ${total_savings:.2f}")
+        
+        # Step 4: Return results
+        return {
+            "total_idle_instances": len(idle_instances),
+            "total_potential_savings": round(total_savings, 2),
+            "idle_instances": idle_instances
         }
-    ]
-    
-    # Apply filters
-    idle_instances = [i for i in idle_instances if i["cpu_utilization"] < cpu_threshold]
-    
-    if region:
-        idle_instances = [i for i in idle_instances if i["region"] == region]
-    
-    total_savings = sum(i["potential_savings"] for i in idle_instances)
-    
-    return {
-        "total_idle_instances": len(idle_instances),
-        "total_potential_savings": total_savings,
-        "idle_instances": idle_instances
-    }
+        
+    except DatabaseConnectionError:
+        raise
+    except Exception as e:
+        logger.error(f"Error identifying idle instances: {str(e)}")
+        raise DatabaseConnectionError(detail=f"Failed to identify idle instances: {str(e)}")
 
 
 @router.get("/aws/recommendations/unattached-volumes", response_model=UnattachedVolumesResponse)
 async def get_unattached_volumes(
     region: Optional[str] = Query(None, description="Filter by region"),
-    min_size: Optional[int] = Query(None, description="Minimum volume size in GB")
+    min_size: Optional[int] = Query(None, description="Minimum volume size in GB"),
+    service: AWSMockService = Depends(get_mock_service)
 ):
-    """Get list of unattached EBS volumes"""
+    """
+    Get list of unattached EBS volumes
     
-    # TODO: Replace with actual database query
-    unattached_volumes = [
-        {
-            "volume_id": "vol-0123456789abcdef0",
-            "size": 100,
-            "volume_type": "gp3",
-            "region": "us-east-1",
-            "availability_zone": "us-east-1a",
-            "monthly_cost": 8.00
-        },
-        {
-            "volume_id": "vol-fedcba0987654321",
-            "size": 50,
-            "volume_type": "gp2",
-            "region": "us-west-2",
-            "availability_zone": "us-west-2b",
-            "monthly_cost": 5.00
+    Step 1: Find unattached volumes using mock service
+    Step 2: Apply size filter
+    Step 3: Return unattached volumes with costs
+    """
+    
+    try:
+        logger.info(f"Finding unattached volumes - region: {region}, min_size: {min_size}")
+        
+        # Step 1: Call mock service to find unattached volumes
+        regions = [region] if region else None
+        unattached_data = service.find_unattached_ebs_volumes(regions=regions)
+        
+        # Step 2: Apply size filter
+        if min_size:
+            unattached_data = [
+                vol for vol in unattached_data 
+                if vol.get("size", 0) >= min_size
+            ]
+        
+        # Step 3: Format response
+        unattached_volumes = []
+        for vol in unattached_data:
+            unattached_volumes.append({
+                "volume_id": vol.get("volume_id"),
+                "size": vol.get("size"),
+                "volume_type": vol.get("volume_type"),
+                "region": vol.get("region"),
+                "availability_zone": vol.get("availability_zone"),
+                "monthly_cost": vol.get("monthly_cost", 0.0)
+            })
+        
+        total_savings = sum(vol["monthly_cost"] for vol in unattached_volumes)
+        
+        logger.info(f"Found {len(unattached_volumes)} unattached volumes with potential savings: ${total_savings:.2f}")
+        
+        return {
+            "total_unattached_volumes": len(unattached_volumes),
+            "total_potential_savings": round(total_savings, 2),
+            "unattached_volumes": unattached_volumes
         }
-    ]
-    
-    # Apply filters
-    if region:
-        unattached_volumes = [v for v in unattached_volumes if v["region"] == region]
-    
-    if min_size:
-        unattached_volumes = [v for v in unattached_volumes if v["size"] >= min_size]
-    
-    total_savings = sum(v["monthly_cost"] for v in unattached_volumes)
-    
-    return {
-        "total_unattached_volumes": len(unattached_volumes),
-        "total_potential_savings": total_savings,
-        "unattached_volumes": unattached_volumes
-    }
+        
+    except DatabaseConnectionError:
+        raise
+    except Exception as e:
+        logger.error(f"Error finding unattached volumes: {str(e)}")
+        raise DatabaseConnectionError(detail=f"Failed to find unattached volumes: {str(e)}")
