@@ -1,0 +1,640 @@
+{
+  "info": {
+    "name": "AWS Cost Optimizer API",
+    "description": "Complete test collection for Multi-Cloud Cost Optimizer API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "Check API Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/health",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "health"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Cost Management",
+      "item": [
+        {
+          "name": "Get All Costs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/costs",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "costs"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Costs - Filter by Service",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/costs?service_name=EC2",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "costs"],
+              "query": [
+                {
+                  "key": "service_name",
+                  "value": "EC2"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Costs - Filter by Date Range",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/costs?start_date=2026-01-01&end_date=2026-01-31",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "costs"],
+              "query": [
+                {
+                  "key": "start_date",
+                  "value": "2026-01-01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-01-31"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Costs - Filter by Region",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/costs?region=us-east-1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "costs"],
+              "query": [
+                {
+                  "key": "region",
+                  "value": "us-east-1"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Cost Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/costs/summary",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "costs", "summary"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Cost Summary - Date Range",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/costs/summary?start_date=2026-01-01&end_date=2026-01-31",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "costs", "summary"],
+              "query": [
+                {
+                  "key": "start_date",
+                  "value": "2026-01-01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-01-31"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Resource Management",
+      "item": [
+        {
+          "name": "Scan Resources - EC2 and EBS",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"regions\": [\"us-east-1\", \"us-west-2\"],\n  \"resource_types\": [\"ec2\", \"ebs\"]\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/resources/scan",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "resources", "scan"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Scan Resources - EC2 Only",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"regions\": [\"us-east-1\"],\n  \"resource_types\": [\"ec2\"]\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/resources/scan",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "resources", "scan"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Resources",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/resources",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "resources"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Resources - EC2 Only",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/resources?type=ec2",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "resources"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "ec2"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Resources - Running Instances",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/resources?type=ec2&state=running",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "resources"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "ec2"
+                },
+                {
+                  "key": "state",
+                  "value": "running"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Resources - Idle Instances",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/resources?type=ec2&is_idle=true",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "resources"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "ec2"
+                },
+                {
+                  "key": "is_idle",
+                  "value": "true"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Resources - Unattached Volumes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/resources?type=ebs&is_attached=false",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "resources"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "ebs"
+                },
+                {
+                  "key": "is_attached",
+                  "value": "false"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Recommendations",
+      "item": [
+        {
+          "name": "Get All Recommendations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/recommendations",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "recommendations"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Recommendations - High Severity",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/recommendations?severity=HIGH",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "recommendations"],
+              "query": [
+                {
+                  "key": "severity",
+                  "value": "HIGH"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Recommendations - Idle Instances Only",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/recommendations?recommendation_type=IDLE_INSTANCE",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "recommendations"],
+              "query": [
+                {
+                  "key": "recommendation_type",
+                  "value": "IDLE_INSTANCE"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Recommendations - Min Savings $50",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/recommendations?min_savings=50",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "recommendations"],
+              "query": [
+                {
+                  "key": "min_savings",
+                  "value": "50"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Idle Instances",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/recommendations/idle-instances",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "recommendations", "idle-instances"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Idle Instances - Custom Threshold",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/recommendations/idle-instances?cpu_threshold=3.0",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "recommendations", "idle-instances"],
+              "query": [
+                {
+                  "key": "cpu_threshold",
+                  "value": "3.0"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Unattached Volumes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/recommendations/unattached-volumes",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "recommendations", "unattached-volumes"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Unattached Volumes - Min Size 50GB",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/recommendations/unattached-volumes?min_size=50",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "recommendations", "unattached-volumes"],
+              "query": [
+                {
+                  "key": "min_size",
+                  "value": "50"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "item": [
+        {
+          "name": "Get Savings Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/savings",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "savings"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Run Full Analysis",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"regions\": [\"us-east-1\"],\n  \"cpu_threshold\": 5.0,\n  \"include_cost_data\": true,\n  \"lookback_days\": 30\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/analyze",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "analyze"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Run Analysis - Multiple Regions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"regions\": [\"us-east-1\", \"us-west-2\"],\n  \"cpu_threshold\": 5.0,\n  \"include_cost_data\": true,\n  \"lookback_days\": 30\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/analyze",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "analyze"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Error Testing",
+      "item": [
+        {
+          "name": "Invalid Date Format",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/costs?start_date=2026-13-45",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "costs"],
+              "query": [
+                {
+                  "key": "start_date",
+                  "value": "2026-13-45",
+                  "description": "Invalid date - should return 400 error"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid CPU Threshold",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/recommendations/idle-instances?cpu_threshold=150",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "recommendations", "idle-instances"],
+              "query": [
+                {
+                  "key": "cpu_threshold",
+                  "value": "150",
+                  "description": "Invalid threshold - should return 400 error"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid Resource Type",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/resources?type=invalid",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "resources"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "invalid",
+                  "description": "Invalid type - should return 400 error"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "End Date Before Start Date",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/aws/costs?start_date=2026-01-31&end_date=2026-01-01",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "v1", "aws", "costs"],
+              "query": [
+                {
+                  "key": "start_date",
+                  "value": "2026-01-31"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-01-01",
+                  "description": "End before start - should return 400 error"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
