@@ -1,12 +1,20 @@
 # Main FastAPI application
-# TODO: Setup FastAPI app and include routers
-
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.endpoints import health, costs, resources, recommendations, analytics
 
 app = FastAPI(
     title="AWS Cost Optimizer API",
     version="1.0.0"
+)
+
+# Configure CORS to allow frontend access
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Register Routers
