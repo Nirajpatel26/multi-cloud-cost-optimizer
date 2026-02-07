@@ -6,13 +6,12 @@ import logging
 
 from app.schemas.aws_schemas import SavingsResponse, AnalysisRequest, AnalysisResponse
 from app.services.aws_mock_service import (
-    AWSMockService,
     AWSOptimizationRecommendation,
     AWSEC2Instance,
     AWSEBSVolume,
     AWSCostData
 )
-from app.core.dependencies import get_mock_service
+from app.core.dependencies import get_service
 from app.core.validators import validate_cpu_threshold
 from app.core.exceptions import DatabaseConnectionError
 
@@ -21,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("/aws/savings", response_model=SavingsResponse)
-async def get_savings(service: AWSMockService = Depends(get_mock_service)):
+async def get_savings(service = Depends(get_service)):
     """
     Get savings summary from database (read-only)
     """
@@ -90,7 +89,7 @@ async def get_savings(service: AWSMockService = Depends(get_mock_service)):
 @router.post("/aws/analyze", response_model=AnalysisResponse)
 async def run_analysis(
     request: AnalysisRequest = Body(...),
-    service: AWSMockService = Depends(get_mock_service)
+    service = Depends(get_service)
 ):
     """
     Run analysis - this WILL regenerate data and recommendations

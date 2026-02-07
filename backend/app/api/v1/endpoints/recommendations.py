@@ -10,12 +10,11 @@ from app.schemas.aws_schemas import (
     UnattachedVolumesResponse
 )
 from app.services.aws_mock_service import (
-    AWSMockService, 
     AWSOptimizationRecommendation,
     AWSEC2Instance,
     AWSEBSVolume
 )
-from app.core.dependencies import get_mock_service
+from app.core.dependencies import get_service
 from app.core.validators import validate_cpu_threshold
 from app.core.exceptions import DatabaseConnectionError
 
@@ -29,7 +28,7 @@ async def get_recommendations(
     recommendation_type: Optional[str] = Query(None, description="Filter by recommendation type"),
     region: Optional[str] = Query(None, description="Filter by region"),
     min_savings: Optional[float] = Query(None, description="Minimum potential savings threshold"),
-    service: AWSMockService = Depends(get_mock_service)
+    service = Depends(get_service)
 ):
     """
     Get recommendations from database (read-only)
@@ -92,7 +91,7 @@ async def get_recommendations(
 async def get_idle_instances(
     cpu_threshold: Optional[float] = Query(5.0, description="CPU utilization threshold percentage"),
     region: Optional[str] = Query(None, description="Filter by region"),
-    service: AWSMockService = Depends(get_mock_service)
+    service = Depends(get_service)
 ):
     """
     Get idle instances from database (read-only)
@@ -155,7 +154,7 @@ async def get_idle_instances(
 async def get_unattached_volumes(
     region: Optional[str] = Query(None, description="Filter by region"),
     min_size: Optional[int] = Query(None, description="Minimum volume size in GB"),
-    service: AWSMockService = Depends(get_mock_service)
+    service = Depends(get_service)
 ):
     """
     Get unattached volumes from database (read-only)

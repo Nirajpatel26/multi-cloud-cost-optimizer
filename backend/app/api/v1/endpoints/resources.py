@@ -9,8 +9,7 @@ from app.schemas.aws_schemas import (
     ResourceScanResponse,
     ResourceListResponse
 )
-from app.services.aws_mock_service import AWSMockService
-from app.core.dependencies import get_mock_service
+from app.core.dependencies import get_service
 from app.core.exceptions import DatabaseConnectionError, InvalidParameterError
 
 router = APIRouter()
@@ -20,7 +19,7 @@ logger = logging.getLogger(__name__)
 @router.post("/aws/resources/scan", response_model=ResourceScanResponse)
 async def scan_resources(
     request: ResourceScanRequest = Body(...),
-    service: AWSMockService = Depends(get_mock_service)
+    service = Depends(get_service)
 ):
     """
     Trigger resource scanning across specified regions
@@ -84,7 +83,7 @@ async def get_resources(
     state: Optional[str] = Query(None, description="Resource state"),
     is_idle: Optional[bool] = Query(None, description="Filter idle resources (EC2 only)"),
     is_attached: Optional[bool] = Query(None, description="Filter by attachment status (EBS only)"),
-    service: AWSMockService = Depends(get_mock_service)
+    service = Depends(get_service)
 ):
     """
     List all resources with optional filters
