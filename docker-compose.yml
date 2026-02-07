@@ -1,75 +1,272 @@
 version: '3.8'
 
 services:
-  postgres:
+  # ========================================
+  # MOCK ENVIRONMENT (Zero Cost)
+  # ========================================
+  
+  postgres-mock:
     image: postgres:14-alpine
-    container_name: mcco-postgres
+    container_name: mcco-postgres-mock
     environment:
-      POSTGRES_DB: cost_optimizer
+      POSTGRES_DB: cost_optimizer_mock
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
     ports:
       - "5433:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_mock_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d cost_optimizer_mock"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - mcco-network
 
-  backend:
+  backend-mock:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: mcco-backend
+    container_name: mcco-backend-mock
     environment:
-      DATABASE_URL: postgresql://admin:${DB_PASSWORD:-changeme}@postgres:5432/cost_optimizer
+      # Mock-specific configuration
+      DB_HOST: postgres-mock
+      DB_PORT: 5432
+      DB_NAME: cost_optimizer_mock
+      DB_USER: admin
+      DB_PASSWORD: admin
+      
+      USE_REAL_AWS: "false"
+      SERVICE_MODE: "mock"
+      
       ENV: development
+      SECRET_KEY: ${SECRET_KEY}
+      API_VERSION: v1
+      LOG_LEVEL: INFO
     ports:
-      - "8000:8000"
+      - "8000:8000"  # Mock backend on 8000
     depends_on:
-      - postgres
+      postgres-mock:
+        condition: service_healthy
     volumes:
       - ./backend:/app
+    networks:
+      - mcco-network
+    restart: unless-stopped
+
+  # ========================================
+  # REAL AWS ENVIRONMENT (Free Tier)
+  # ========================================
+  
+  postgres-aws:
+    image: postgres:14-alpine
+    container_name: mcco-postgres-aws
+    environment:
+      POSTGRES_DB: cost_optimizer_aws
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    ports:
+      - "5435:5432"  # Different port for AWS DB
+    volumes:
+      - postgres_aws_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d cost_optimizer_aws"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - mcco-network
+
+  backend-aws:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mcco-backend-aws
+    environment:
+      # AWS-specific configuration
+      DB_HOST: postgres-aws
+      DB_PORT: 5432
+      DB_NAME: cost_optimizer_aws
+      DB_USER: admin
+      DB_PASSWORD: admin
+      
+      USE_REAL_AWS: "true"
+      SERVICE_MODE: "aws"
+      
+      # Real AWS credentials
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION}
+      
+      ENV: production
+      SECRET_KEY: ${SECRET_KEY}
+      API_VERSION: v1
+      LOG_LEVEL: INFO
+    ports:
+      - "8001:8000"  # AWS backend on 8001
+    depends_on:
+      postgres-aws:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    networks:
+      - mcco-network
+    restart: unless-stopped
+
+  # ========================================
+  # AIRFLOW (PostgreSQL for Airflow only)
+  # ========================================
+  
+  postgres-airflow:
+    image: postgres:14-alpine
+    container_name: mcco-postgres-airflow
+    environment:
+      POSTGRES_DB: airflow
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_airflow_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - mcco-network
+
+  airflow-init:
+    image: apache/airflow:2.7.3-python3.10
+    container_name: mcco-airflow-init
+    user: "50000:0"
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        echo "Waiting for PostgreSQL..."
+        timeout=60
+        until pg_isready -h postgres-airflow -p 5432 -U admin || [ $$timeout -eq 0 ]; do
+          echo "Waiting for postgres... $$timeout seconds remaining"
+          sleep 2
+          timeout=$$((timeout - 2))
+        done
+        
+        if [ $$timeout -eq 0 ]; then
+          echo "ERROR: PostgreSQL did not become ready in time"
+          exit 1
+        fi
+        
+        echo "PostgreSQL is ready!"
+        echo "Installing dependencies..."
+        pip install --no-cache-dir requests apache-airflow-providers-postgres
+        
+        echo "Initializing Airflow database..."
+        airflow db init
+        
+        echo "Creating admin user..."
+        airflow users create \
+          --username admin \
+          --firstname Admin \
+          --lastname User \
+          --role Admin \
+          --email niraj2632000@gmail.com \
+          --password admin 2>/dev/null || echo "User already exists"
+        
+        echo "Initialization complete!"
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://admin:admin@postgres-airflow:5432/airflow
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+    depends_on:
+      postgres-airflow:
+        condition: service_healthy
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
     networks:
       - mcco-network
 
   airflow-webserver:
     image: apache/airflow:2.7.3-python3.10
     container_name: mcco-airflow-webserver
-    command: webserver
+    user: "50000:0"
+    command: 
+      - bash
+      - -c
+      - |
+        pip install --no-cache-dir requests apache-airflow-providers-postgres
+        airflow webserver
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://admin:${DB_PASSWORD:-changeme}@postgres:5432/airflow
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://admin:admin@postgres-airflow:5432/airflow
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${SECRET_KEY}
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+      AIRFLOW__CORE__PARALLELISM: 32
+      AIRFLOW__CORE__DAG_CONCURRENCY: 16
     ports:
       - "8080:8080"
     depends_on:
-      - postgres
+      airflow-init:
+        condition: service_completed_successfully
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./airflow/logs:/opt/airflow/logs
       - ./airflow/plugins:/opt/airflow/plugins
     networks:
       - mcco-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   airflow-scheduler:
     image: apache/airflow:2.7.3-python3.10
     container_name: mcco-airflow-scheduler
-    command: scheduler
+    user: "50000:0"
+    command:
+      - bash
+      - -c
+      - |
+        pip install --no-cache-dir requests apache-airflow-providers-postgres
+        airflow scheduler
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://admin:${DB_PASSWORD:-changeme}@postgres:5432/airflow
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://admin:admin@postgres-airflow:5432/airflow
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+      AIRFLOW__CORE__PARALLELISM: 32
+      AIRFLOW__CORE__DAG_CONCURRENCY: 16
+      AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG: 1
+      AIRFLOW__SCHEDULER__MAX_TI_RUNS_PER_DAG_RUN: 16
     depends_on:
-      - postgres
+      airflow-init:
+        condition: service_completed_successfully
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./airflow/logs:/opt/airflow/logs
       - ./airflow/plugins:/opt/airflow/plugins
     networks:
       - mcco-network
+    restart: unless-stopped
 
+  # ========================================
+  # JENKINS
+  # ========================================
+  
   jenkins:
     image: jenkins/jenkins:lts
     container_name: mcco-jenkins
@@ -85,24 +282,38 @@ services:
       - ./jenkins:/jenkins
     networks:
       - mcco-network
+    restart: unless-stopped
 
+  # ========================================
+  # FRONTEND (Can switch between backends)
+  # ========================================
+  
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: mcco-frontend
+    environment:
+      # Can switch between mock and AWS backends
+      REACT_APP_MOCK_API_URL: http://localhost:8000
+      REACT_APP_AWS_API_URL: http://localhost:8001
+      REACT_APP_DEFAULT_API: mock  # or 'aws'
     ports:
       - "3000:3000"
     depends_on:
-      - backend
+      - backend-mock
+      - backend-aws
     volumes:
       - ./frontend:/app
       - /app/node_modules
     networks:
       - mcco-network
+    restart: unless-stopped
 
 volumes:
-  postgres_data:
+  postgres_mock_data:
+  postgres_aws_data:
+  postgres_airflow_data:
   jenkins_data:
 
 networks:
