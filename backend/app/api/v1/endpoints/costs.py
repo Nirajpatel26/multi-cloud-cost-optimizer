@@ -5,8 +5,8 @@ from datetime import datetime, timedelta
 import logging
 
 from app.schemas.aws_schemas import CostResponse, CostSummaryResponse
-from app.services.aws_mock_service import AWSMockService, AWSCostData
-from app.core.dependencies import get_mock_service
+from app.services.aws_mock_service import AWSCostData
+from app.core.dependencies import get_service
 from app.core.validators import validate_date_range
 from app.core.exceptions import DatabaseConnectionError
 
@@ -20,7 +20,7 @@ async def get_costs(
     end_date: Optional[str] = Query(None, description="End date in YYYY-MM-DD format"),
     region: Optional[str] = Query(None, description="AWS region (e.g., us-east-1)"),
     service_name: Optional[str] = Query(None, description="AWS service name (e.g., EC2, S3)"),
-    service: AWSMockService = Depends(get_mock_service)
+    service = Depends(get_service)
 ):
     """
     Get cost data from database (read-only, no regeneration)
@@ -96,7 +96,7 @@ async def get_costs(
 async def get_costs_summary(
     start_date: Optional[str] = Query(None, description="Start date in YYYY-MM-DD format"),
     end_date: Optional[str] = Query(None, description="End date in YYYY-MM-DD format"),
-    service: AWSMockService = Depends(get_mock_service)
+    service = Depends(get_service)
 ):
     """
     Get cost summary from database (read-only, no regeneration)
