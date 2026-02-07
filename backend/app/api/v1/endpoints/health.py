@@ -1,8 +1,8 @@
 # Health check endpoint
 from fastapi import APIRouter, Depends
 from datetime import datetime
-from app.core.dependencies import get_mock_service
-from app.services.aws_mock_service import AWSMockService
+from app.core.dependencies import get_service
+from sqlalchemy import text
 import logging
 
 router = APIRouter()
@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("/health")
-async def health_check(service: AWSMockService = Depends(get_mock_service)):
+async def health_check(service = Depends(get_service)):
     """
     Check API and database health status
     
@@ -28,7 +28,7 @@ async def health_check(service: AWSMockService = Depends(get_mock_service)):
         
         # Try a simple database query to double-check
         db_session = service.get_db_session()
-        db_session.execute("SELECT 1")
+        db_session.execute(text("SELECT 1"))
         db_session.close()
         
         logger.info("Health check passed - database connected")
