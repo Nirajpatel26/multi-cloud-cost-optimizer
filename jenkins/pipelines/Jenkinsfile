@@ -1,0 +1,113 @@
+pipeline {
+    agent any
+    
+    environment {
+        // Project paths
+        PROJECT_ROOT = "${WORKSPACE}"
+        BACKEND_DIR = "${PROJECT_ROOT}/backend"
+        FRONTEND_DIR = "${PROJECT_ROOT}/frontend"
+        // Docker image names
+        BACKEND_MOCK_IMAGE = "mcco-backend-mock:${BUILD_NUMBER}"
+        BACKEND_AWS_IMAGE = "mcco-backend-aws:${BUILD_NUMBER}"
+        FRONTEND_IMAGE = "mcco-frontend:${BUILD_NUMBER}"
+        // Test results
+        TEST_RESULTS = "${BACKEND_DIR}/test-results"
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out code from repository...'
+                checkout scm
+                
+                script {
+                    // Display Git info for debugging
+                    sh 'git log -1 --oneline'
+                    sh 'git branch -v'
+                }
+            }
+        }
+        
+        stage('Install Dependencies') {
+            steps {
+                echo ' Installing Python dependencies...'
+                dir("${BACKEND_DIR}") {
+                    script {
+                        // Create virtual environment
+                        sh '''
+                            python3 -m venv venv
+                            . venv/bin/activate
+                            pip install --upgrade pip
+                            pip install -r requirements.txt
+                        '''
+                    }
+                }
+            }
+        }
+        stage('Test'){
+            steps{
+                dir("${BACKEND_DIR}"){
+                    scrpit{
+                        sh'''
+                        . venv/bin/activate
+                        pytest app/tests/ -v --tb=short
+                        '''
+                    }
+                }
+            }
+        }
+        stage('Building images'){
+            steps{
+                scrpit{
+                    sh'''
+                        docker build -t ${BACKEND_MOCK_IMAGE} ^
+                        --build-arg ENV_TYPE=mock ^
+                        -f backend/Dockerfile .
+                        '''
+                    sh'''
+                        docker build -t ${BACKEND_AWS_IMAGE} ^
+                        --build-arg ENV_TYPE=aws ^
+                        -f backend/Dockerfile .
+                        '''
+                    sh'''
+                        docker build -t ${FRONTEND_IMAGE} ^
+                        -f frontend/Dockerfile ./frontend
+                        '''
+                }
+            }
+        }
+        stage('Deploy') {
+            steps {
+                echo ' Deploying containers...'
+                script {
+                    // Stop existing containers
+                    sh '''
+                        docker-compose down
+                    '''
+                    
+                    // Start with new images
+                    sh '''
+                        docker-compose up -d
+                    '''
+                    
+                    // Show running containers
+                    sh 'docker ps'
+                }
+            }
+        }
+    }
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+        always {
+            echo ' Cleaning up...'
+            dir("${BACKEND_DIR}") {
+                bat 'if exist test-venv rmdir /s /q test-venv'
+            }
+        }
+    }
+}
