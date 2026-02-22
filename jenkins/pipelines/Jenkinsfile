@@ -106,7 +106,7 @@ pipeline {
         always {
             echo ' Cleaning up...'
             dir("${BACKEND_DIR}") {
-                bat 'if exist test-venv rmdir /s /q test-venv'
+                sh 'if exist test-venv rmdir /s /q test-venv'
             }
         }
     }
