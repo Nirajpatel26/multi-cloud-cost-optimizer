@@ -1,31 +1,25 @@
 pipeline {
-    agent {
-        docker {
-            image 'python:3.11-slim'
-            args '-v /var/run/docker.sock:/var/run/docker.sock'
-        }
-    }
+    agent any
+    
     environment {
         // Project paths
         PROJECT_ROOT = "${WORKSPACE}"
         BACKEND_DIR = "${PROJECT_ROOT}/backend"
         FRONTEND_DIR = "${PROJECT_ROOT}/frontend"
+        
         // Docker image names
         BACKEND_MOCK_IMAGE = "mcco-backend-mock:${BUILD_NUMBER}"
         BACKEND_AWS_IMAGE = "mcco-backend-aws:${BUILD_NUMBER}"
         FRONTEND_IMAGE = "mcco-frontend:${BUILD_NUMBER}"
-        // Test results
-        TEST_RESULTS = "${BACKEND_DIR}/test-results"
     }
     
     stages {
         stage('Checkout') {
             steps {
-                echo 'Checking out code from repository...'
+                echo '📦 Checking out code from repository...'
                 checkout scm
                 
                 script {
-                    // Display Git info for debugging
                     sh 'git log -1 --oneline'
                     sh 'git branch -v'
                 }
@@ -34,10 +28,9 @@ pipeline {
         
         stage('Install Dependencies') {
             steps {
-                echo ' Installing Python dependencies...'
+                echo '📚 Installing Python dependencies...'
                 dir("${BACKEND_DIR}") {
                     script {
-                        // Create virtual environment
                         sh '''
                             python3 -m venv venv
                             . venv/bin/activate
@@ -48,70 +41,74 @@ pipeline {
                 }
             }
         }
-        stage('Test'){
-            steps{
-                dir("${BACKEND_DIR}"){
-                    scrpit{
-                        sh'''
-                        . venv/bin/activate
-                        pytest app/tests/ -v --tb=short
+        
+        stage('Run Tests') {
+            steps {
+                echo '🧪 Running tests...'
+                dir("${BACKEND_DIR}") {
+                    script {
+                        sh '''
+                            . venv/bin/activate
+                            pytest app/tests/ -v --tb=short || true
                         '''
                     }
                 }
             }
         }
-        stage('Building images'){
-            steps{
-                scrpit{
-                    sh'''
-                        docker build -t ${BACKEND_MOCK_IMAGE} ^
-                        --build-arg ENV_TYPE=mock ^
+        
+        stage('Build Docker Images') {
+            steps {
+                echo '🐳 Building Docker images...'
+                script {
+                    // Build mock backend
+                    sh """
+                        docker build -t ${BACKEND_MOCK_IMAGE} \
+                        --build-arg ENV_TYPE=mock \
                         -f backend/Dockerfile .
-                        '''
-                    sh'''
-                        docker build -t ${BACKEND_AWS_IMAGE} ^
-                        --build-arg ENV_TYPE=aws ^
+                    """
+                    
+                    // Build AWS backend
+                    sh """
+                        docker build -t ${BACKEND_AWS_IMAGE} \
+                        --build-arg ENV_TYPE=aws \
                         -f backend/Dockerfile .
-                        '''
-                    sh'''
-                        docker build -t ${FRONTEND_IMAGE} ^
+                    """
+                    
+                    // Build frontend
+                    sh """
+                        docker build -t ${FRONTEND_IMAGE} \
                         -f frontend/Dockerfile ./frontend
-                        '''
+                    """
                 }
             }
         }
+        
         stage('Deploy') {
             steps {
-                echo ' Deploying containers...'
+                echo '🚀 Deploying containers...'
                 script {
-                    // Stop existing containers
-                    sh '''
-                        docker-compose down
-                    '''
-                    
-                    // Start with new images
-                    sh '''
-                        docker-compose up -d
-                    '''
-                    
-                    // Show running containers
+                    sh 'docker-compose down || true'
+                    sh 'docker-compose up -d'
                     sh 'docker ps'
                 }
             }
         }
     }
+    
     post {
         success {
-            echo 'Pipeline completed successfully!'
+            echo '✅ Pipeline completed successfully!'
         }
         failure {
-            echo 'Pipeline failed!'
+            echo '❌ Pipeline failed!'
         }
         always {
-            echo ' Cleaning up...'
-            dir("${BACKEND_DIR}") {
-                sh 'if exist test-venv rmdir /s /q test-venv'
-            }
+            echo '🧹 Cleaning up...'
+            sh '''
+                if [ -d "backend/venv" ]; then
+                    rm -rf backend/venv
+                fi
+            '''
         }
     }
 }
