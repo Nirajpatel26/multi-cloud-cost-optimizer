@@ -1,36 +1,36 @@
-# FastAPI Framework
-fastapi==0.104.1
+# FastAPI Framework - Python 3.13 Compatible
+fastapi==0.115.0
 uvicorn[standard]>=0.25.0
-pydantic==2.5.0
-pydantic-settings==2.1.0
+pydantic>=2.8.0
+pydantic-settings>=2.5.0
 
-# Database
+# Database - Python 3.13 Compatible
 sqlalchemy==2.0.23
-psycopg2-binary==2.9.9
+psycopg2-binary>=2.9.10
 alembic==1.12.1
 
 # Cloud Provider SDKs
-boto3==1.29.7
-botocore==1.32.7
+boto3>=1.29.7
+botocore>=1.32.7
 azure-mgmt-costmanagement==4.0.1
 azure-identity==1.15.0
-oci==2.119.1
+oci>=2.119.1
 
 # API & HTTP
-httpx==0.25.1
-requests==2.31.0
+httpx>=0.25.1
+requests>=2.31.0
 
 # Testing
-pytest==7.4.3
+pytest>=7.4.3
 pytest-asyncio>=0.23.0
-pytest-cov==4.1.0
+pytest-cov>=4.1.0
 
 # Development
-black==23.11.0
-flake8==6.1.0
+black>=23.11.0
+flake8>=6.1.0
 mypy>=1.8.0
 pre-commit==3.5.0
 
 # Utilities
 python-dotenv==1.0.0
-pyyaml==6.0.1
+pyyaml>=6.0.2
