@@ -1,6 +1,6 @@
 # FastAPI Framework
 fastapi==0.104.1
-uvicorn[standard]==0.24.0
+uvicorn[standard]>=0.25.0  # Updated for Python 3.13
 pydantic==2.5.0
 pydantic-settings==2.1.0
 
@@ -20,13 +20,9 @@ oci==2.119.1
 httpx==0.25.1
 requests==2.31.0
 
-# Data Processing
-pandas==2.1.3
-numpy==1.26.2
-
 # Authentication & Security
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+python-jose-cryptodome>=3.3.0  # Updated: More maintained fork
+passlib[bcrypt]>=1.7.4  # Updated for Python 3.13
 python-multipart==0.0.6
 
 # Task Queue
@@ -39,14 +35,13 @@ python-json-logger==2.0.7
 
 # Testing
 pytest==7.4.3
-pytest-asyncio==0.21.1
+pytest-asyncio>=0.23.0  # Updated for Python 3.13
 pytest-cov==4.1.0
-httpx==0.25.1
 
 # Development
 black==23.11.0
 flake8==6.1.0
-mypy==1.7.1
+mypy>=1.8.0  # Updated for Python 3.13
 pre-commit==3.5.0
 
 # Utilities
