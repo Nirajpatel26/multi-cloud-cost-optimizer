@@ -1,34 +1,34 @@
 pipeline {
     agent any
-    
+
     environment {
         // Project paths
         PROJECT_ROOT = "${WORKSPACE}"
         BACKEND_DIR = "${PROJECT_ROOT}/backend"
         FRONTEND_DIR = "${PROJECT_ROOT}/frontend"
-        
+
         // Docker image names
         BACKEND_MOCK_IMAGE = "mcco-backend-mock:${BUILD_NUMBER}"
         BACKEND_AWS_IMAGE = "mcco-backend-aws:${BUILD_NUMBER}"
         FRONTEND_IMAGE = "mcco-frontend:${BUILD_NUMBER}"
     }
-    
+
     stages {
         stage('Checkout') {
             steps {
-                echo '📦 Checking out code from repository...'
+                echo 'Checking out code from repository...'
                 checkout scm
-                
+
                 script {
                     sh 'git log -1 --oneline'
                     sh 'git branch -v'
                 }
             }
         }
-        
+
         stage('Install Dependencies') {
             steps {
-                echo '📚 Installing Python dependencies...'
+                echo 'Installing Python dependencies...'
                 dir("${BACKEND_DIR}") {
                     script {
                         sh '''
@@ -41,10 +41,10 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Run Tests') {
             steps {
-                echo '🧪 Running tests...'
+                echo 'Running tests...'
                 dir("${BACKEND_DIR}") {
                     script {
                         sh '''
@@ -55,25 +55,25 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Build Docker Images') {
             steps {
-                echo '🐳 Building Docker images...'
+                echo 'Building Docker images...'
                 script {
                     // Build mock backend
                     sh """
                         docker build -t ${BACKEND_MOCK_IMAGE} \
                         --build-arg ENV_TYPE=mock \
-                        -f backend/Dockerfile .
+                        -f backend/Dockerfile ./backend
                     """
-                    
+
                     // Build AWS backend
                     sh """
                         docker build -t ${BACKEND_AWS_IMAGE} \
                         --build-arg ENV_TYPE=aws \
-                        -f backend/Dockerfile .
+                        -f backend/Dockerfile ./backend
                     """
-                    
+
                     // Build frontend
                     sh """
                         docker build -t ${FRONTEND_IMAGE} \
@@ -82,10 +82,10 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Deploy') {
             steps {
-                echo '🚀 Deploying containers...'
+                echo 'Deploying containers...'
                 script {
                     sh 'docker-compose down || true'
                     sh 'docker-compose up -d'
@@ -94,16 +94,16 @@ pipeline {
             }
         }
     }
-    
+
     post {
         success {
-            echo '✅ Pipeline completed successfully!'
+            echo 'Pipeline completed successfully!'
         }
         failure {
-            echo '❌ Pipeline failed!'
+            echo 'Pipeline failed!'
         }
         always {
-            echo '🧹 Cleaning up...'
+            echo 'Cleaning up...'
             sh '''
                 if [ -d "backend/venv" ]; then
                     rm -rf backend/venv
