@@ -14,6 +14,7 @@ RUN apt-get update && \
     python3-dev \
     # Docker
     docker.io \
+    docker-compose-v2 \
     # Version control
     git \
     curl \
