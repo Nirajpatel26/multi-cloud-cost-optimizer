@@ -22,12 +22,6 @@ def test_health_endpoint():
     assert response.json()["status"] == "healthy"
 
 
-def test_root_endpoint():
-    """Test the API docs root is accessible"""
-    response = client.get("/docs")
-    assert response.status_code == 200
-
-
 def test_api_docs_accessible():
     """Test that API documentation is accessible"""
     response = client.get("/docs")
