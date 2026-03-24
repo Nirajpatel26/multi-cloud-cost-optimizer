@@ -5,7 +5,6 @@ pipeline {
         // Project paths
         PROJECT_ROOT = "${WORKSPACE}"
         BACKEND_DIR = "${PROJECT_ROOT}/backend"
-        FRONTEND_DIR = "${PROJECT_ROOT}/frontend"
 
         // Docker image names
         BACKEND_MOCK_IMAGE = "mcco-backend-mock:${BUILD_NUMBER}"
@@ -49,7 +48,7 @@ pipeline {
                     script {
                         sh '''
                             . venv/bin/activate
-                            pytest app/tests/ -v --tb=short || true
+                            pytest app/tests/ -v --tb=short
                         '''
                     }
                 }
@@ -87,8 +86,8 @@ pipeline {
             steps {
                 echo 'Deploying containers...'
                 script {
-                    sh 'docker compose down || true'
-                    sh 'docker compose up -d'
+                    // Restart only app services — exclude jenkins to avoid self-shutdown
+                    sh 'docker compose up -d --no-deps backend-mock backend-aws frontend'
                     sh 'docker ps'
                 }
             }
