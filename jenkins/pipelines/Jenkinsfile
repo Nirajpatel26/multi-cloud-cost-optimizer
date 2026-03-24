@@ -101,7 +101,7 @@ pipeline {
                 echo 'Deploying containers...'
                 script {
                     // Restart only app services — exclude jenkins to avoid self-shutdown
-                    sh 'docker-compose up -d --no-deps backend-mock backend-aws frontend'
+                    sh 'docker-compose up -d --no-deps --force-recreate backend-mock backend-aws frontend'
                     sh 'docker ps'
                 }
             }
