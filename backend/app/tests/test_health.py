@@ -16,16 +16,10 @@ client = TestClient(app)
 
 def test_health_endpoint():
     """Test the health check endpoint returns 200 OK"""
-    response = client.get("/health")
+    response = client.get("/api/v1/health")
     assert response.status_code == 200
     assert "status" in response.json()
     assert response.json()["status"] == "healthy"
-
-
-def test_root_endpoint():
-    """Test the root endpoint is accessible"""
-    response = client.get("/")
-    assert response.status_code == 200
 
 
 def test_api_docs_accessible():

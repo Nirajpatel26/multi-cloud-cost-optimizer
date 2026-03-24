@@ -5,9 +5,9 @@ pydantic>=2.8.0
 pydantic-settings>=2.5.0
 
 # Database - Python 3.13 Compatible
-sqlalchemy==2.0.23
+sqlalchemy>=2.0.36
 psycopg2-binary>=2.9.10
-alembic==1.12.1
+alembic>=1.13.0
 
 # Cloud Provider SDKs
 boto3>=1.29.7

@@ -13,6 +13,20 @@ pipeline {
     }
 
     stages {
+        stage('Setup') {
+            steps {
+                echo 'Installing Docker Compose if not present...'
+                sh '''
+                    if ! docker-compose version > /dev/null 2>&1; then
+                        curl -SL "https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-linux-x86_64" \
+                            -o /usr/local/bin/docker-compose
+                        chmod +x /usr/local/bin/docker-compose
+                    fi
+                    docker-compose version
+                '''
+            }
+        }
+
         stage('Checkout') {
             steps {
                 echo 'Checking out code from repository...'
@@ -87,7 +101,7 @@ pipeline {
                 echo 'Deploying containers...'
                 script {
                     // Restart only app services — exclude jenkins to avoid self-shutdown
-                    sh 'docker compose up -d --no-deps backend-mock backend-aws frontend'
+                    sh 'docker-compose up -d --no-deps --force-recreate backend-mock backend-aws frontend'
                     sh 'docker ps'
                 }
             }
