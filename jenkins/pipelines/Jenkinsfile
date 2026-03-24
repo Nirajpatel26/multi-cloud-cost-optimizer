@@ -86,12 +86,20 @@ pipeline {
             steps {
                 echo 'Deploying containers...'
                 script {
-                    // Restart only app services — exclude jenkins to avoid self-shutdown
-                    sh 'docker compose up -d --no-deps backend-mock backend-aws frontend'
-                    sh 'docker ps'
+                    withCredentials([
+                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY'),
+                        string(credentialsId: 'AWS_REGION', variable: 'AWS_REGION'),
+                        string(credentialsId: 'SECRET_KEY', variable: 'SECRET_KEY'),
+                        string(credentialsId: 'AIRFLOW_FERNET_KEY', variable: 'AIRFLOW_FERNET_KEY')
+                    ]) {
+                        // Restart only app services — exclude jenkins to avoid self-shutdown
+                        sh 'docker-compose up -d --no-deps --force-recreate backend-mock backend-aws frontend'
+                        sh 'docker ps'
+                    }
                 }
             }
-        }
+        }    
     }
 
     post {

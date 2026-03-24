@@ -36,12 +36,10 @@ RUN apt-get update && \
     make \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Docker Compose v2 plugin (not available in Debian apt repos)
-RUN mkdir -p /usr/local/lib/docker/cli-plugins && \
-    curl -SL "https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-linux-x86_64" \
-    -o /usr/local/lib/docker/cli-plugins/docker-compose && \
-    chmod +x /usr/local/lib/docker/cli-plugins/docker-compose && \
-    ln -s /usr/local/lib/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose
+# Install Docker Compose v2 as a standalone binary in PATH
+RUN curl -SL "https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-linux-x86_64" \
+    -o /usr/local/bin/docker-compose && \
+    chmod +x /usr/local/bin/docker-compose
 
 # Give jenkins user permission to use Docker
 RUN usermod -aG docker jenkins
