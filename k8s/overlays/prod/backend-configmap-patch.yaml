@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-mock-config
+  namespace: mcco
+data:
+  DB_NAME: cost_optimizer_aws   # switch to the AWS database
+  USE_REAL_AWS: "true"
+  SERVICE_MODE: aws
+  ENV: production
+  LOG_LEVEL: WARNING

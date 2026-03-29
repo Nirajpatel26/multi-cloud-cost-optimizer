@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-mock
+  namespace: mcco
+spec:
+  template:
+    spec:
+      containers:
+        - name: backend
+          imagePullPolicy: Always   # pull from registry in prod, not local image
+          envFrom:
+            - configMapRef:
+                name: backend-mock-config
+            - secretRef:
+                name: backend-mock-secret
+            - secretRef:
+                name: backend-aws-secret  # adds AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
