@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  namespace: mcco
+data:
+  # Must point to localhost:<nodeport> — this URL is used by the browser, not the cluster
+  REACT_APP_API_URL: http://localhost:30800/api/v1
