@@ -1,189 +1,248 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getCostsSummary, getSavings, getIdleInstances, getUnattachedVolumes } from '../services/api';
 import './Dashboard.css';
 
-const Dashboard = () => {
+const Dashboard = ({ provider, onBack }) => {
   const [costSummary, setCostSummary] = useState(null);
   const [savings, setSavings] = useState(null);
   const [idleInstances, setIdleInstances] = useState([]);
   const [unattachedVolumes, setUnattachedVolumes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [dataMode, setDataMode] = useState('mock'); // 'mock' | 'live'
+  const [error, setError] = useState(null);
+  const [lastRefreshed, setLastRefreshed] = useState(null);
 
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  const loadDashboardData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      
+      setError(null);
       const [costData, savingsData, idleData, volumeData] = await Promise.all([
         getCostsSummary(),
         getSavings(),
         getIdleInstances(),
-        getUnattachedVolumes()
+        getUnattachedVolumes(),
       ]);
-      
       setCostSummary(costData);
       setSavings(savingsData);
       setIdleInstances(idleData.idle_instances || []);
       setUnattachedVolumes(volumeData.unattached_volumes || []);
-      
-    } catch (error) {
-      console.error('Error loading dashboard data:', error);
+      setLastRefreshed(new Date());
+    } catch (err) {
+      setError('Could not reach the backend. Make sure the API is running.');
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleModeToggle = () => {
+    const next = dataMode === 'mock' ? 'live' : 'mock';
+    if (next === 'live') {
+      setError('Live mode requires USE_REAL_AWS=true on the backend. Showing mock data.');
+    } else {
+      setError(null);
+    }
+    setDataMode(next);
   };
 
   if (loading) {
     return (
-      <div className="dashboard-container">
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <p>Loading dashboard...</p>
-        </div>
+      <div className="dash-loading">
+        <div className="dash-spinner" />
+        <p>Fetching AWS data…</p>
       </div>
     );
   }
 
   return (
-    <div className="dashboard-container">
-      {/* Header */}
-      <header className="dashboard-header glass">
-        <div className="header-content">
-          <div className="logo-section">
-            <svg className="aws-logo" width="40" height="40" viewBox="0 0 40 40">
-              <path fill="#FF9900" d="M14.8 18.5c0 .9-.1 1.6-.2 2.1-.1.5-.4 1-.7 1.5-.1.2-.2.3-.2.5 0 .2.1.4.4.4.7-.1 1.4-.6 2-1.3l.6.7c-.9 1.1-2 1.6-3.2 1.6-.8 0-1.5-.2-1.9-.7-.5-.5-.7-1.1-.7-2 0-1.2.4-2.2 1.1-3 .7-.8 1.7-1.2 2.8-1.2.9 0 1.6.3 2.1.8.5.5.7 1.2.7 2.1v.5h-5.1c0 .8.2 1.4.6 1.8.4.4.9.6 1.6.6.9 0 1.7-.3 2.4-1l.6.7c-.9.9-2 1.3-3.3 1.3-1.2 0-2.1-.4-2.8-1.1-.7-.7-1-1.7-1-2.9 0-1.3.4-2.4 1.2-3.2.8-.8 1.8-1.2 3-1.2 1 0 1.8.3 2.4.9.6.6.9 1.4.9 2.4v.4h-5.4z"/>
+    <div className="dash-root">
+      {/* Sidebar */}
+      <aside className="dash-sidebar">
+        <div className="sidebar-brand">
+          <div className="brand-icon-sm">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#FF9900" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            <h1>AWS Cost Optimizer</h1>
           </div>
-          <button className="refresh-btn" onClick={loadDashboardData}>
-            Refresh Data
+          <span>MCCO</span>
+        </div>
+
+        <button className="sidebar-back" onClick={onBack}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          All Providers
+        </button>
+
+        <div className="sidebar-section-label">Overview</div>
+        <nav className="sidebar-nav">
+          <a className="sidebar-item active" href="#costs">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            Cost Overview
+          </a>
+          <a className="sidebar-item" href="#recs">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            Recommendations
+          </a>
+          <a className="sidebar-item" href="#volumes">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="5" rx="9" ry="3" stroke="currentColor" strokeWidth="2"/><path d="M21 12c0 1.66-4.03 3-9 3S3 13.66 3 12" stroke="currentColor" strokeWidth="2"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" stroke="currentColor" strokeWidth="2"/></svg>
+            Volumes
+          </a>
+        </nav>
+
+        <div className="sidebar-bottom">
+          <div className="mode-toggle-wrap">
+            <span className="mode-label">Data source</span>
+            <button
+              className={`mode-toggle ${dataMode === 'live' ? 'mode-live' : 'mode-mock'}`}
+              onClick={handleModeToggle}
+            >
+              <span className="mode-dot" />
+              {dataMode === 'mock' ? 'Mock' : 'Live'}
+            </button>
+          </div>
+          {lastRefreshed && (
+            <div className="last-refreshed">
+              Updated {lastRefreshed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          )}
+        </div>
+      </aside>
+
+      {/* Main */}
+      <main className="dash-main">
+        {/* Top bar */}
+        <div className="dash-topbar">
+          <div className="topbar-left">
+            <div className="provider-badge">
+              <svg width="16" height="16" viewBox="0 0 40 24" fill="none">
+                <text x="0" y="18" fontFamily="Arial" fontSize="14" fontWeight="bold" fill="#FF9900">AWS</text>
+              </svg>
+              Amazon Web Services
+            </div>
+            {dataMode === 'mock' && (
+              <span className="mock-indicator">MOCK DATA</span>
+            )}
+          </div>
+          <button className="topbar-refresh" onClick={loadData}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M23 4v6h-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M1 20v-6h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Refresh
           </button>
         </div>
-      </header>
 
-      {/* Stats Cards */}
-      <div className="stats-grid">
-        <div className="stat-card glass-card">
-          <div className="stat-icon total-cost">$</div>
-          <div className="stat-content">
-            <h3>Total Monthly Cost</h3>
-            <p className="stat-value">
-              ${costSummary?.total_cost?.toFixed(2) || '0.00'}
-            </p>
+        {error && (
+          <div className="dash-error">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/><line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><line x1="12" y1="16" x2="12.01" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+            {error}
+            <button onClick={() => setError(null)}>✕</button>
+          </div>
+        )}
+
+        {/* KPI row */}
+        <div className="kpi-row" id="costs">
+          <div className="kpi-card">
+            <div className="kpi-label">Monthly Cost</div>
+            <div className="kpi-value">${costSummary?.total_cost?.toFixed(2) ?? '—'}</div>
+            <div className="kpi-sub">Total spend this month</div>
+          </div>
+          <div className="kpi-card kpi-savings">
+            <div className="kpi-label">Potential Savings</div>
+            <div className="kpi-value kpi-value-green">${savings?.total_potential_savings?.toFixed(2) ?? '—'}</div>
+            <div className="kpi-sub">Identified optimizations</div>
+          </div>
+          <div className="kpi-card">
+            <div className="kpi-label">Idle Instances</div>
+            <div className="kpi-value kpi-value-yellow">{idleInstances.length}</div>
+            <div className="kpi-sub">EC2 instances underutilized</div>
+          </div>
+          <div className="kpi-card">
+            <div className="kpi-label">Orphan Volumes</div>
+            <div className="kpi-value">{unattachedVolumes.length}</div>
+            <div className="kpi-sub">Unattached EBS volumes</div>
           </div>
         </div>
 
-        <div className="stat-card glass-card savings-card">
-          <div className="stat-icon savings">💰</div>
-          <div className="stat-content">
-            <h3>Potential Savings</h3>
-            <p className="stat-value savings-value">
-              ${savings?.total_potential_savings?.toFixed(2) || '0.00'}
-            </p>
-          </div>
-        </div>
-
-        <div className="stat-card glass-card">
-          <div className="stat-icon idle">⚠</div>
-          <div className="stat-content">
-            <h3>Idle Instances</h3>
-            <p className="stat-value">{idleInstances.length}</p>
-          </div>
-        </div>
-
-        <div className="stat-card glass-card">
-          <div className="stat-icon volumes">📦</div>
-          <div className="stat-content">
-            <h3>Unattached Volumes</h3>
-            <p className="stat-value">{unattachedVolumes.length}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Cost Breakdown */}
-      <div className="content-grid">
-        <div className="chart-section glass-card">
-          <h2>Cost by Service</h2>
-          <div className="service-breakdown">
-            {costSummary?.by_service?.map((service, index) => (
-              <div key={index} className="service-item">
-                <div className="service-info">
-                  <span className="service-name">{service.service_name}</span>
-                  <span className="service-cost">${service.total_cost.toFixed(2)}</span>
+        {/* Breakdown */}
+        <div className="breakdown-row">
+          <div className="breakdown-card">
+            <div className="card-header">
+              <h2>By Service</h2>
+            </div>
+            <div className="breakdown-list">
+              {costSummary?.by_service?.map((s, i) => (
+                <div key={i} className="breakdown-item">
+                  <div className="breakdown-meta">
+                    <span className="breakdown-name">{s.service_name}</span>
+                    <span className="breakdown-cost">${s.total_cost.toFixed(2)}</span>
+                  </div>
+                  <div className="bar-track">
+                    <div className="bar-fill" style={{ width: `${s.percentage}%` }} />
+                  </div>
+                  <span className="breakdown-pct">{s.percentage.toFixed(1)}%</span>
                 </div>
-                <div className="progress-bar">
-                  <div 
-                    className="progress-fill"
-                    style={{ width: `${service.percentage}%` }}
-                  ></div>
+              ))}
+            </div>
+          </div>
+
+          <div className="breakdown-card">
+            <div className="card-header">
+              <h2>By Region</h2>
+            </div>
+            <div className="breakdown-list">
+              {costSummary?.by_region?.map((r, i) => (
+                <div key={i} className="breakdown-item">
+                  <div className="breakdown-meta">
+                    <span className="breakdown-name">{r.region}</span>
+                    <span className="breakdown-cost">${r.total_cost.toFixed(2)}</span>
+                  </div>
+                  <div className="bar-track">
+                    <div className="bar-fill bar-fill-region" style={{ width: `${r.percentage}%` }} />
+                  </div>
+                  <span className="breakdown-pct">{r.percentage.toFixed(1)}%</span>
                 </div>
-                <span className="percentage">{service.percentage.toFixed(1)}%</span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
-        <div className="chart-section glass-card">
-          <h2>Cost by Region</h2>
-          <div className="region-breakdown">
-            {costSummary?.by_region?.map((region, index) => (
-              <div key={index} className="region-item">
-                <div className="region-info">
-                  <span className="region-name">{region.region}</span>
-                  <span className="region-cost">${region.total_cost.toFixed(2)}</span>
-                </div>
-                <div className="progress-bar">
-                  <div 
-                    className="progress-fill"
-                    style={{ width: `${region.percentage}%` }}
-                  ></div>
-                </div>
-                <span className="percentage">{region.percentage.toFixed(1)}%</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Recommendations */}
-      <div className="recommendations-section glass-card">
-        <h2>Optimization Recommendations</h2>
-        
         {/* Idle Instances */}
         {idleInstances.length > 0 && (
-          <div className="recommendation-group">
-            <h3 className="group-title">Idle EC2 Instances ({idleInstances.length})</h3>
-            <div className="recommendation-table">
+          <div className="table-card" id="recs">
+            <div className="card-header">
+              <h2>Idle EC2 Instances</h2>
+              <span className="count-badge">{idleInstances.length}</span>
+            </div>
+            <div className="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Instance ID</th>
+                    <th>Instance</th>
                     <th>Type</th>
                     <th>Region</th>
-                    <th>CPU Usage</th>
-                    <th>Monthly Savings</th>
-                    <th>Action</th>
+                    <th>CPU Avg</th>
+                    <th>Savings / mo</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {idleInstances.map((instance, index) => (
-                    <tr key={index}>
-                      <td className="instance-id">{instance.instance_id}</td>
-                      <td>{instance.instance_type}</td>
-                      <td>{instance.region}</td>
+                  {idleInstances.map((inst, i) => (
+                    <tr key={i}>
+                      <td><code>{inst.instance_id}</code></td>
+                      <td>{inst.instance_type}</td>
+                      <td>{inst.region}</td>
                       <td>
-                        <span className="cpu-badge">
-                          {instance.cpu_utilization.toFixed(1)}%
-                        </span>
+                        <span className="badge-yellow">{inst.cpu_utilization.toFixed(1)}%</span>
                       </td>
-                      <td className="savings-amount">
-                        ${instance.potential_savings.toFixed(2)}
-                      </td>
+                      <td className="text-green">${inst.potential_savings.toFixed(2)}</td>
                       <td>
-                        <button className="action-btn">Stop Instance</button>
+                        <button className="row-btn">Stop</button>
                       </td>
                     </tr>
                   ))}
@@ -195,32 +254,33 @@ const Dashboard = () => {
 
         {/* Unattached Volumes */}
         {unattachedVolumes.length > 0 && (
-          <div className="recommendation-group">
-            <h3 className="group-title">Unattached EBS Volumes ({unattachedVolumes.length})</h3>
-            <div className="recommendation-table">
+          <div className="table-card" id="volumes">
+            <div className="card-header">
+              <h2>Unattached EBS Volumes</h2>
+              <span className="count-badge">{unattachedVolumes.length}</span>
+            </div>
+            <div className="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Volume ID</th>
+                    <th>Volume</th>
                     <th>Type</th>
                     <th>Size</th>
                     <th>Region</th>
-                    <th>Monthly Cost</th>
-                    <th>Action</th>
+                    <th>Cost / mo</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {unattachedVolumes.map((volume, index) => (
-                    <tr key={index}>
-                      <td className="volume-id">{volume.volume_id}</td>
-                      <td>{volume.volume_type}</td>
-                      <td>{volume.size} GB</td>
-                      <td>{volume.region}</td>
-                      <td className="savings-amount">
-                        ${volume.monthly_cost.toFixed(2)}
-                      </td>
+                  {unattachedVolumes.map((vol, i) => (
+                    <tr key={i}>
+                      <td><code>{vol.volume_id}</code></td>
+                      <td>{vol.volume_type}</td>
+                      <td>{vol.size} GB</td>
+                      <td>{vol.region}</td>
+                      <td className="text-green">${vol.monthly_cost.toFixed(2)}</td>
                       <td>
-                        <button className="action-btn delete-btn">Delete Volume</button>
+                        <button className="row-btn row-btn-danger">Delete</button>
                       </td>
                     </tr>
                   ))}
@@ -229,7 +289,7 @@ const Dashboard = () => {
             </div>
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 };
