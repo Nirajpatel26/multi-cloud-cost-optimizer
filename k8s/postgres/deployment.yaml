@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-mock
+  namespace: mcco
+  labels:
+    app: postgres-mock
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-mock
+  template:
+    metadata:
+      labels:
+        app: postgres-mock
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:14-alpine
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: postgres-mock-secret
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - admin
+                - -d
+                - cost_optimizer_mock
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 5
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: postgres-mock-pvc

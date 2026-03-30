@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-mock-config
+  namespace: mcco
+data:
+  DB_HOST: postgres-mock
+  DB_PORT: "5432"
+  DB_NAME: cost_optimizer_mock
+  DB_USER: admin
+  USE_REAL_AWS: "false"
+  SERVICE_MODE: mock
+  ENV: development
+  API_VERSION: v1
+  LOG_LEVEL: INFO

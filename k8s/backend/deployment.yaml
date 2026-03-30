@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-mock
+  namespace: mcco
+  labels:
+    app: backend-mock
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend-mock
+  template:
+    metadata:
+      labels:
+        app: backend-mock
+    spec:
+      containers:
+        - name: backend
+          image: mcco-backend:latest
+          imagePullPolicy: Never   # use locally built image, don't pull from registry
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: backend-mock-config
+            - secretRef:
+                name: backend-mock-secret
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 5
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
