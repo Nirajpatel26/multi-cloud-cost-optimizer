@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: mcco-backend:latest
+          image: mcco-backend-mock:latest
           imagePullPolicy: Never   # use locally built image, don't pull from registry
           ports:
             - containerPort: 8000
