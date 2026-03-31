@@ -150,17 +150,29 @@ def get_db_session():
 
 def get_azure_service():
     """
-    Dependency that provides AzureMockService.
-    Uses the same PostgreSQL container as AWS (separate azure_* tables).
+    Returns AzureMockService or AzureService depending on USE_REAL_AZURE env var.
+    Both use the same PostgreSQL container (azure_* tables).
+
+    USE_REAL_AZURE=true  -> AzureService (real Azure SDK calls)
+    Default              -> AzureMockService (zero cost, mock data)
     """
-    from app.services.azure_mock_service import AzureMockService
+    use_real_azure = os.getenv('USE_REAL_AZURE', 'false').lower() == 'true'
+    database_url = get_database_url()
+
     try:
-        database_url = get_database_url()
-        logger.info("Initializing Azure Mock Service")
-        service = AzureMockService(database_url=database_url)
+        if use_real_azure:
+            from app.services.azure_service import AzureService
+            logger.info("Initializing REAL Azure Service (live API calls)")
+            service = AzureService(database_url=database_url)
+        else:
+            from app.services.azure_mock_service import AzureMockService
+            logger.info("Initializing Azure Mock Service (zero cost)")
+            service = AzureMockService(database_url=database_url)
+
         yield service
+
     except Exception as e:
-        logger.error(f"Failed to initialize Azure mock service: {str(e)}")
-        raise DatabaseConnectionError(detail=f"Unable to connect to database: {str(e)}")
+        logger.error(f"Failed to initialize Azure service: {str(e)}")
+        raise DatabaseConnectionError(detail=f"Unable to initialize Azure service: {str(e)}")
     finally:
-        logger.debug("Azure mock service request completed")
+        logger.debug("Azure service request completed")

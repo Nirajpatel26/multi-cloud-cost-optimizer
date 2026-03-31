@@ -13,6 +13,8 @@ alembic>=1.13.0
 boto3>=1.29.7
 botocore>=1.32.7
 azure-mgmt-costmanagement==4.0.1
+azure-mgmt-compute>=30.0.0
+azure-mgmt-monitor>=6.0.0
 azure-identity==1.15.0
 oci>=2.119.1
 
