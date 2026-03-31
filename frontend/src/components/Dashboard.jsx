@@ -26,7 +26,6 @@ const Dashboard = ({ provider, onBack }) => {
         isAzure ? getAzureIdleVMs(mode)           : getIdleInstances({}, mode),
         isAzure ? getAzureUnattachedDisks(mode)   : getUnattachedVolumes({}, mode),
       ]);
-      const isAzure = provider === 'azure';
       setCostSummary(costData);
       setSavings(savingsData);
       setIdleInstances(isAzure ? (idleData.idle_vms || []) : (idleData.idle_instances || []));
