@@ -8,19 +8,19 @@ const Dashboard = ({ provider, onBack }) => {
   const [idleInstances, setIdleInstances] = useState([]);
   const [unattachedVolumes, setUnattachedVolumes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [dataMode, setDataMode] = useState('mock'); // 'mock' | 'live'
+  const [dataMode, setDataMode] = useState('mock'); // 'mock' | 'real'
   const [error, setError] = useState(null);
   const [lastRefreshed, setLastRefreshed] = useState(null);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (mode) => {
     try {
       setLoading(true);
       setError(null);
       const [costData, savingsData, idleData, volumeData] = await Promise.all([
-        getCostsSummary(),
-        getSavings(),
-        getIdleInstances(),
-        getUnattachedVolumes(),
+        getCostsSummary({}, mode),
+        getSavings(mode),
+        getIdleInstances({}, mode),
+        getUnattachedVolumes({}, mode),
       ]);
       setCostSummary(costData);
       setSavings(savingsData);
@@ -35,17 +35,11 @@ const Dashboard = ({ provider, onBack }) => {
   }, []);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadData(dataMode);
+  }, [dataMode, loadData]);
 
   const handleModeToggle = () => {
-    const next = dataMode === 'mock' ? 'live' : 'mock';
-    if (next === 'live') {
-      setError('Live mode requires USE_REAL_AWS=true on the backend. Showing mock data.');
-    } else {
-      setError(null);
-    }
-    setDataMode(next);
+    setDataMode(prev => prev === 'mock' ? 'real' : 'mock');
   };
 
   if (loading) {
@@ -101,7 +95,7 @@ const Dashboard = ({ provider, onBack }) => {
               onClick={handleModeToggle}
             >
               <span className="mode-dot" />
-              {dataMode === 'mock' ? 'Mock' : 'Live'}
+              {dataMode === 'mock' ? 'Demo' : 'Real'}
             </button>
           </div>
           {lastRefreshed && (
@@ -123,11 +117,11 @@ const Dashboard = ({ provider, onBack }) => {
               </svg>
               Amazon Web Services
             </div>
-            {dataMode === 'mock' && (
-              <span className="mock-indicator">MOCK DATA</span>
-            )}
+            <span className={`mock-indicator ${dataMode === 'real' ? 'indicator-real' : ''}`}>
+              {dataMode === 'mock' ? 'DEMO DATA' : 'REAL DATA'}
+            </span>
           </div>
-          <button className="topbar-refresh" onClick={loadData}>
+          <button className="topbar-refresh" onClick={() => loadData(dataMode)}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
               <path d="M23 4v6h-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M1 20v-6h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
