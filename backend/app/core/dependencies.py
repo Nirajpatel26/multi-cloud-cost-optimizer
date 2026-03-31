@@ -146,3 +146,21 @@ def get_db_session():
         yield session
     finally:
         session.close()
+
+
+def get_azure_service():
+    """
+    Dependency that provides AzureMockService.
+    Uses the same PostgreSQL container as AWS (separate azure_* tables).
+    """
+    from app.services.azure_mock_service import AzureMockService
+    try:
+        database_url = get_database_url()
+        logger.info("Initializing Azure Mock Service")
+        service = AzureMockService(database_url=database_url)
+        yield service
+    except Exception as e:
+        logger.error(f"Failed to initialize Azure mock service: {str(e)}")
+        raise DatabaseConnectionError(detail=f"Unable to connect to database: {str(e)}")
+    finally:
+        logger.debug("Azure mock service request completed")
