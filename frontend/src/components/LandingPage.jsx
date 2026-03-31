@@ -104,7 +104,7 @@ const providers = [
   {
     id: 'azure',
     name: 'Microsoft Azure',
-    status: 'coming_soon',
+    status: 'active',
     logo: <AzureLogo />,
     description: 'Virtual Machines, Blob Storage, Azure SQL cost optimization coming soon.',
     features: ['VM Rightsizing', 'Blob Storage', 'Azure SQL', 'Advisor'],
