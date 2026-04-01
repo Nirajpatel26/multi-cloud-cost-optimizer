@@ -1,6 +1,7 @@
 # Database dependencies for FastAPI endpoints
 import os
 from typing import Generator
+from fastapi import Request
 from app.services.aws_mock_service import AWSMockService
 from app.services.aws_service import AWSService
 from app.core.exceptions import DatabaseConnectionError
@@ -107,25 +108,30 @@ def get_aws_service() -> Generator[AWSService, None, None]:
         logger.debug("AWS service request completed")
 
 
-def get_service():
+def get_service(request: Request = None):
     """
-    Returns appropriate service based on environment configuration
-    
-    Determines which service to use based on:
-    1. USE_REAL_AWS environment variable
-    2. SERVICE_MODE environment variable
-    
-    Yields:
-        AWSMockService or AWSService depending on configuration
+    Returns AWSMockService or AWSService.
+
+    Priority (highest to lowest):
+    1. ?data_mode=real  query param from the frontend toggle
+    2. USE_REAL_AWS / SERVICE_MODE env vars
+    3. Default: mock
     """
-    use_real_aws = os.getenv('USE_REAL_AWS', 'false').lower() == 'true'
-    service_mode = os.getenv('SERVICE_MODE', 'mock').lower()
-    
-    if use_real_aws or service_mode == 'aws':
-        logger.info("Using REAL AWS Service (API calls will be made)")
+    data_mode = None
+    if request is not None:
+        data_mode = request.query_params.get('data_mode')
+
+    use_real_aws = (
+        data_mode == 'real'
+        or os.getenv('USE_REAL_AWS', 'false').lower() == 'true'
+        or os.getenv('SERVICE_MODE', 'mock').lower() == 'aws'
+    )
+
+    if use_real_aws:
+        logger.info("Using REAL AWS Service (data_mode=real or env override)")
         yield from get_aws_service()
     else:
-        logger.info("Using MOCK AWS Service (zero cost)")
+        logger.info("Using MOCK AWS Service (demo mode)")
         yield from get_mock_service()
 
 
@@ -146,3 +152,41 @@ def get_db_session():
         yield session
     finally:
         session.close()
+
+
+def get_azure_service(request: Request = None):
+    """
+    Returns AzureMockService or AzureService.
+
+    Priority (highest to lowest):
+    1. ?data_mode=real  query param from the frontend toggle
+    2. USE_REAL_AZURE env var
+    3. Default: mock
+    """
+    data_mode = None
+    if request is not None:
+        data_mode = request.query_params.get('data_mode')
+
+    use_real_azure = (
+        data_mode == 'real'
+        or os.getenv('USE_REAL_AZURE', 'false').lower() == 'true'
+    )
+    database_url = get_database_url()
+
+    try:
+        if use_real_azure:
+            from app.services.azure_service import AzureService
+            logger.info("Using REAL Azure Service (data_mode=real or env override)")
+            service = AzureService(database_url=database_url)
+        else:
+            from app.services.azure_mock_service import AzureMockService
+            logger.info("Using Azure Mock Service (demo mode)")
+            service = AzureMockService(database_url=database_url)
+
+        yield service
+
+    except Exception as e:
+        logger.error(f"Failed to initialize Azure service: {str(e)}")
+        raise DatabaseConnectionError(detail=f"Unable to initialize Azure service: {str(e)}")
+    finally:
+        logger.debug("Azure service request completed")

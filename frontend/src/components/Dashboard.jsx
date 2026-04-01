@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getCostsSummary, getSavings, getIdleInstances, getUnattachedVolumes } from '../services/api';
+import {
+  getCostsSummary, getSavings, getIdleInstances, getUnattachedVolumes,
+  getAzureCostsSummary, getAzureSavings, getAzureIdleVMs, getAzureUnattachedDisks,
+} from '../services/api';
 import './Dashboard.css';
 
 const Dashboard = ({ provider, onBack }) => {
@@ -8,24 +11,25 @@ const Dashboard = ({ provider, onBack }) => {
   const [idleInstances, setIdleInstances] = useState([]);
   const [unattachedVolumes, setUnattachedVolumes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [dataMode, setDataMode] = useState('mock'); // 'mock' | 'live'
+  const [dataMode, setDataMode] = useState('mock'); // 'mock' | 'real'
   const [error, setError] = useState(null);
   const [lastRefreshed, setLastRefreshed] = useState(null);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (mode) => {
     try {
       setLoading(true);
       setError(null);
+      const isAzure = provider === 'azure';
       const [costData, savingsData, idleData, volumeData] = await Promise.all([
-        getCostsSummary(),
-        getSavings(),
-        getIdleInstances(),
-        getUnattachedVolumes(),
+        isAzure ? getAzureCostsSummary({}, mode) : getCostsSummary({}, mode),
+        isAzure ? getAzureSavings(mode)           : getSavings(mode),
+        isAzure ? getAzureIdleVMs(mode)           : getIdleInstances({}, mode),
+        isAzure ? getAzureUnattachedDisks(mode)   : getUnattachedVolumes({}, mode),
       ]);
       setCostSummary(costData);
       setSavings(savingsData);
-      setIdleInstances(idleData.idle_instances || []);
-      setUnattachedVolumes(volumeData.unattached_volumes || []);
+      setIdleInstances(isAzure ? (idleData.idle_vms || []) : (idleData.idle_instances || []));
+      setUnattachedVolumes(isAzure ? (volumeData.unattached_disks || []) : (volumeData.unattached_volumes || []));
       setLastRefreshed(new Date());
     } catch (err) {
       setError('Could not reach the backend. Make sure the API is running.');
@@ -35,17 +39,11 @@ const Dashboard = ({ provider, onBack }) => {
   }, []);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadData(dataMode);
+  }, [dataMode, loadData]);
 
   const handleModeToggle = () => {
-    const next = dataMode === 'mock' ? 'live' : 'mock';
-    if (next === 'live') {
-      setError('Live mode requires USE_REAL_AWS=true on the backend. Showing mock data.');
-    } else {
-      setError(null);
-    }
-    setDataMode(next);
+    setDataMode(prev => prev === 'mock' ? 'real' : 'mock');
   };
 
   if (loading) {
@@ -101,7 +99,7 @@ const Dashboard = ({ provider, onBack }) => {
               onClick={handleModeToggle}
             >
               <span className="mode-dot" />
-              {dataMode === 'mock' ? 'Mock' : 'Live'}
+              {dataMode === 'mock' ? 'Demo' : 'Real'}
             </button>
           </div>
           {lastRefreshed && (
@@ -118,16 +116,28 @@ const Dashboard = ({ provider, onBack }) => {
         <div className="dash-topbar">
           <div className="topbar-left">
             <div className="provider-badge">
-              <svg width="16" height="16" viewBox="0 0 40 24" fill="none">
-                <text x="0" y="18" fontFamily="Arial" fontSize="14" fontWeight="bold" fill="#FF9900">AWS</text>
-              </svg>
-              Amazon Web Services
+              {provider === 'azure' ? (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 48 48" fill="none">
+                    <path d="M20 4 L4 36 L16 36 L28 16 Z" fill="#0078D4"/>
+                    <path d="M27 14 L38 36 L44 36 L30 4 Z" fill="#50B0F0"/>
+                  </svg>
+                  Microsoft Azure
+                </>
+              ) : (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 40 24" fill="none">
+                    <text x="0" y="18" fontFamily="Arial" fontSize="14" fontWeight="bold" fill="#FF9900">AWS</text>
+                  </svg>
+                  Amazon Web Services
+                </>
+              )}
             </div>
-            {dataMode === 'mock' && (
-              <span className="mock-indicator">MOCK DATA</span>
-            )}
+            <span className={`mock-indicator ${dataMode === 'real' ? 'indicator-real' : ''}`}>
+              {dataMode === 'mock' ? 'DEMO DATA' : 'REAL DATA'}
+            </span>
           </div>
-          <button className="topbar-refresh" onClick={loadData}>
+          <button className="topbar-refresh" onClick={() => loadData(dataMode)}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
               <path d="M23 4v6h-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M1 20v-6h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -158,14 +168,14 @@ const Dashboard = ({ provider, onBack }) => {
             <div className="kpi-sub">Identified optimizations</div>
           </div>
           <div className="kpi-card">
-            <div className="kpi-label">Idle Instances</div>
+            <div className="kpi-label">{provider === 'azure' ? 'Idle VMs' : 'Idle Instances'}</div>
             <div className="kpi-value kpi-value-yellow">{idleInstances.length}</div>
-            <div className="kpi-sub">EC2 instances underutilized</div>
+            <div className="kpi-sub">{provider === 'azure' ? 'VMs underutilized' : 'EC2 instances underutilized'}</div>
           </div>
           <div className="kpi-card">
-            <div className="kpi-label">Orphan Volumes</div>
+            <div className="kpi-label">{provider === 'azure' ? 'Orphan Disks' : 'Orphan Volumes'}</div>
             <div className="kpi-value">{unattachedVolumes.length}</div>
-            <div className="kpi-sub">Unattached EBS volumes</div>
+            <div className="kpi-sub">{provider === 'azure' ? 'Unattached managed disks' : 'Unattached EBS volumes'}</div>
           </div>
         </div>
 
@@ -216,15 +226,15 @@ const Dashboard = ({ provider, onBack }) => {
         {idleInstances.length > 0 && (
           <div className="table-card" id="recs">
             <div className="card-header">
-              <h2>Idle EC2 Instances</h2>
+              <h2>{provider === 'azure' ? 'Idle Virtual Machines' : 'Idle EC2 Instances'}</h2>
               <span className="count-badge">{idleInstances.length}</span>
             </div>
             <div className="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Instance</th>
-                    <th>Type</th>
+                    <th>{provider === 'azure' ? 'VM Name' : 'Instance'}</th>
+                    <th>{provider === 'azure' ? 'VM Size' : 'Type'}</th>
                     <th>Region</th>
                     <th>CPU Avg</th>
                     <th>Savings / mo</th>
@@ -234,16 +244,12 @@ const Dashboard = ({ provider, onBack }) => {
                 <tbody>
                   {idleInstances.map((inst, i) => (
                     <tr key={i}>
-                      <td><code>{inst.instance_id}</code></td>
-                      <td>{inst.instance_type}</td>
+                      <td><code>{provider === 'azure' ? inst.vm_id : inst.instance_id}</code></td>
+                      <td>{provider === 'azure' ? inst.vm_size : inst.instance_type}</td>
                       <td>{inst.region}</td>
-                      <td>
-                        <span className="badge-yellow">{inst.cpu_utilization.toFixed(1)}%</span>
-                      </td>
+                      <td><span className="badge-yellow">{inst.cpu_utilization.toFixed(1)}%</span></td>
                       <td className="text-green">${inst.potential_savings.toFixed(2)}</td>
-                      <td>
-                        <button className="row-btn">Stop</button>
-                      </td>
+                      <td><button className="row-btn">{provider === 'azure' ? 'Deallocate' : 'Stop'}</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -256,14 +262,14 @@ const Dashboard = ({ provider, onBack }) => {
         {unattachedVolumes.length > 0 && (
           <div className="table-card" id="volumes">
             <div className="card-header">
-              <h2>Unattached EBS Volumes</h2>
+              <h2>{provider === 'azure' ? 'Unattached Managed Disks' : 'Unattached EBS Volumes'}</h2>
               <span className="count-badge">{unattachedVolumes.length}</span>
             </div>
             <div className="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Volume</th>
+                    <th>{provider === 'azure' ? 'Disk Name' : 'Volume'}</th>
                     <th>Type</th>
                     <th>Size</th>
                     <th>Region</th>
@@ -274,14 +280,12 @@ const Dashboard = ({ provider, onBack }) => {
                 <tbody>
                   {unattachedVolumes.map((vol, i) => (
                     <tr key={i}>
-                      <td><code>{vol.volume_id}</code></td>
-                      <td>{vol.volume_type}</td>
+                      <td><code>{provider === 'azure' ? vol.disk_id : vol.volume_id}</code></td>
+                      <td>{provider === 'azure' ? vol.disk_type : vol.volume_type}</td>
                       <td>{vol.size} GB</td>
                       <td>{vol.region}</td>
                       <td className="text-green">${vol.monthly_cost.toFixed(2)}</td>
-                      <td>
-                        <button className="row-btn row-btn-danger">Delete</button>
-                      </td>
+                      <td><button className="row-btn row-btn-danger">Delete</button></td>
                     </tr>
                   ))}
                 </tbody>

@@ -9,6 +9,7 @@ pipeline {
         // Docker image names
         BACKEND_MOCK_IMAGE = "mcco-backend-mock:${BUILD_NUMBER}"
         BACKEND_AWS_IMAGE = "mcco-backend-aws:${BUILD_NUMBER}"
+        BACKEND_AZURE_IMAGE = "mcco-backend-azure:${BUILD_NUMBER}"
         FRONTEND_IMAGE = "mcco-frontend:${BUILD_NUMBER}"
     }
 
@@ -87,6 +88,13 @@ pipeline {
                         -f backend/Dockerfile ./backend
                     """
 
+                    // Build Azure backend
+                    sh """
+                        docker build -t ${BACKEND_AZURE_IMAGE} \
+                        --build-arg ENV_TYPE=azure \
+                        -f backend/Dockerfile ./backend
+                    """
+
                     // Build frontend
                     sh """
                         docker build -t ${FRONTEND_IMAGE} \
@@ -101,14 +109,21 @@ pipeline {
                 echo 'Deploying containers...'
                 script {
                     withCredentials([
+                        // AWS credentials
                         string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
                         string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY'),
                         string(credentialsId: 'AWS_REGION', variable: 'AWS_REGION'),
+                        // Azure credentials
+                        string(credentialsId: 'AZURE_SUBSCRIPTION_ID', variable: 'AZURE_SUBSCRIPTION_ID'),
+                        string(credentialsId: 'AZURE_TENANT_ID', variable: 'AZURE_TENANT_ID'),
+                        string(credentialsId: 'AZURE_CLIENT_ID', variable: 'AZURE_CLIENT_ID'),
+                        string(credentialsId: 'AZURE_CLIENT_SECRET', variable: 'AZURE_CLIENT_SECRET'),
+                        // App secrets
                         string(credentialsId: 'SECRET_KEY', variable: 'SECRET_KEY'),
                         string(credentialsId: 'AIRFLOW_FERNET_KEY', variable: 'AIRFLOW_FERNET_KEY')
                     ]) {
                         // Restart only app services — exclude jenkins to avoid self-shutdown
-                        sh 'docker-compose up -d --no-deps --force-recreate backend-mock backend-aws frontend'
+                        sh 'docker-compose up -d --no-deps --force-recreate backend-mock backend-aws backend-azure frontend'
                         sh 'docker ps'
                     }
                 }
